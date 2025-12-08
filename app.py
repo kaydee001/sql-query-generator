@@ -3,14 +3,27 @@ import sqlite3
 import pandas as pd
 
 st.title("SQL Query Generator")
-if st.button("run sample query"):
+sql_query = st.text_area("Enter SQL query", "SELECT * FROM customers")
+
+if st.button("Run Query"):
     conn = sqlite3.connect("database/sales.db")
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM customers")
-    results = cursor.fetchall()
+    try:
+        cursor.execute(sql_query)
 
-    df = pd.DataFrame(results, columns=['id', 'name', 'email', 'total_spent'])
-    st.dataframe(df)
+        if cursor.description:
+            results = cursor.fetchall()
+            columns = [description[0] for description in cursor.description]
+            df = pd.DataFrame(results, columns=columns)
+            st.dataframe(df)
+        else:
+            conn.commit()
+            st.success(f"Query executed - {cursor.rowcount} row(s) affected")
+            st.balloons()
 
-    conn.close()
+    except Exception as e:
+        st.error(f"Error : {e}")
+
+    finally:
+        conn.close()
