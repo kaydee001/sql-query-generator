@@ -93,8 +93,31 @@ with st.expander("View Database Schema : "):
 mode = st.radio("Choose input mode : ", [
                 "Write SQL", "Ask in natural language"])
 
+st.markdown("---")
+st.write("💡 Or try a sample query : ")
+
 if mode == "Write SQL":
-    sql_query = st.text_area("Enter SQL query", "SELECT * FROM customers")
+    sample_queries = sample_queries = {
+        "Select a sample...": "",
+        "Show all customers": "SELECT * FROM customers",
+        "Show all orders": "SELECT * FROM orders",
+        "Top 3 customers by spending": "SELECT name, total_spent FROM customers ORDER BY total_spent DESC LIMIT 3",
+        "Orders with customer names": "SELECT customers.name, orders.product, orders.amount FROM orders JOIN customers ON orders.customer_id = customers.id"
+    }
+else:
+    sample_queries = {
+        "Select a sample...": "",
+        "Show all customers": "Show all customers",
+        "Find big spenders": "Show me customers who spent more than 1000",
+        "Recent orders": "Show all orders with customer names",
+        "Count customers": "How many customers do we have?"
+    }
+
+selected_sample = st.selectbox("Choose sample : ", list(sample_queries.keys()))
+
+if mode == "Write SQL":
+    default_query = sample_queries[selected_sample] if sample_queries[selected_sample] else "SELECT * FROM customers"
+    sql_query = st.text_area("Enter SQL query", default_query)
 
     if st.button("Run Query"):
         is_valid, error_msg = validate_query(sql_query)
@@ -127,8 +150,9 @@ if mode == "Write SQL":
                 conn.close()
 
 else:
+    default_question = sample_queries[selected_sample] if sample_queries[selected_sample] else "Show me all customers"
     user_question = st.text_input(
-        "Ask a question about your data : ", "Show me all customers")
+        "Ask a question about your data : ", default_question)
 
     if st.button("Generate & Run Query : "):
         with st.spinner("Generating SQL"):
