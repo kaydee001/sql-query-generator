@@ -48,6 +48,23 @@ def generate_sql_from_natural_language(user_question, schema):
     return sql_query
 
 
+def validate_query(sql_query):
+    query_upper = sql_query.strip().upper()
+    dangerous_keywords = ["DROP", "TRUNCATE", "ALTER"]
+
+    for keyword in dangerous_keywords:
+        if keyword in query_upper:
+            return False, f"⚠️ {keyword} commands are not allowed for safety reasons"
+
+    if "DELETE" in query_upper and "WHERE" not in query_upper:
+        return False, f"⚠️ DELETE without WHERE clause is not allowed. Please specify which rows to delete."
+
+    if "UPDATE" in query_upper and "WHERE" not in query_upper:
+        return False, f"⚠️ UPDATE without WHERE clause is not allowed. Please specify which rows to update."
+
+    return True, None
+
+
 st.title("SQL Query Generator")
 
 with st.expander("View Database Schema : "):
@@ -61,7 +78,9 @@ with st.expander("View Database Schema : "):
 
     for table in tables:
         table_name = table[0]
-        st.subheader(f"Table: {table_name}")
+        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+        row_count = cursor.fetchone()[0]
+        st.subheader(f"Table: {table_name}, ({row_count} rows)")
 
         cursor.execute(f"PRAGMA table_info({table_name})")
         columns = cursor.fetchall()
@@ -78,29 +97,34 @@ if mode == "Write SQL":
     sql_query = st.text_area("Enter SQL query", "SELECT * FROM customers")
 
     if st.button("Run Query"):
-        conn = sqlite3.connect("database/sales.db")
-        cursor = conn.cursor()
+        is_valid, error_msg = validate_query(sql_query)
+        if not is_valid:
+            st.error(error_msg)
 
-        try:
-            cursor.execute(sql_query)
+        else:
+            conn = sqlite3.connect("database/sales.db")
+            cursor = conn.cursor()
 
-            if cursor.description:
-                results = cursor.fetchall()
-                columns = [description[0]
-                           for description in cursor.description]
-                df = pd.DataFrame(results, columns=columns)
-                st.dataframe(df)
-            else:
-                conn.commit()
-                st.success(
-                    f"Query executed - {cursor.rowcount} row(s) affected")
-                st.balloons()
+            try:
+                cursor.execute(sql_query)
 
-        except Exception as e:
-            st.error(f"Error : {e}")
+                if cursor.description:
+                    results = cursor.fetchall()
+                    columns = [description[0]
+                               for description in cursor.description]
+                    df = pd.DataFrame(results, columns=columns)
+                    st.dataframe(df)
+                else:
+                    conn.commit()
+                    st.success(
+                        f"Query executed - {cursor.rowcount} row(s) affected")
+                    st.balloons()
 
-        finally:
-            conn.close()
+            except Exception as e:
+                st.error(f"Error : {e}")
+
+            finally:
+                conn.close()
 
 else:
     user_question = st.text_input(
@@ -116,26 +140,31 @@ else:
             st.subheader("Generated SQL : ")
             st.code(generated_sql, language="sql")
 
-        conn = sqlite3.connect("database/sales.db")
-        cursor = conn.cursor()
+        is_valid, error_msg = validate_query(generated_sql)
+        if not is_valid:
+            st.error(error_msg)
 
-        try:
-            cursor.execute(generated_sql)
+        else:
+            conn = sqlite3.connect("database/sales.db")
+            cursor = conn.cursor()
 
-            if cursor.description:
-                results = cursor.fetchall()
-                columns = [description[0]
-                           for description in cursor.description]
-                df = pd.DataFrame(results, columns=columns)
-                st.dataframe(df)
-            else:
-                conn.commit()
-                st.success(
-                    f"Query executed - {cursor.rowcount} row(s) affected")
-                st.balloons()
+            try:
+                cursor.execute(generated_sql)
 
-        except Exception as e:
-            st.error(f"Error: {e}")
+                if cursor.description:
+                    results = cursor.fetchall()
+                    columns = [description[0]
+                               for description in cursor.description]
+                    df = pd.DataFrame(results, columns=columns)
+                    st.dataframe(df)
+                else:
+                    conn.commit()
+                    st.success(
+                        f"Query executed - {cursor.rowcount} row(s) affected")
+                    st.balloons()
 
-        finally:
-            conn.close()
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+            finally:
+                conn.close()
