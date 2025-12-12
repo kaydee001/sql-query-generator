@@ -3,4 +3,3 @@ sqlalchemy
 groq
 python-dotenv
 pandas
-db-sqlite3
