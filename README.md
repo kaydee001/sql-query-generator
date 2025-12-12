@@ -2,7 +2,7 @@
 
 Natural language to SQL query system - Ask questions about your database in plain English, get SQL queries generated, validated, and executed automatically.
 
-[Live Demo](YOUR_STREAMLIT_URL_HERE) | [GitHub](YOUR_GITHUB_REPO_URL)
+[Live Demo](https://querymate-ai.streamlit.app/) | [GitHub](https://github.com/kaydee001/sql-query-generator)
 
 ## 🎯 What It Does
 
