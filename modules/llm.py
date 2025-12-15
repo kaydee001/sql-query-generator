@@ -21,6 +21,7 @@ def generate_sql_from_natural_language(user_question: str, schema: str) -> str:
             3. Return ONLY the SQL query - no explainations, no markdown, no extra text
             4. If the question is unclear or cannot be answered with the given schema, return : "Unclear Question"
             SQL Query : """
+
     response = client.chat.completions.create(
         model=MODEL_NAME, messages=[{"role": "user", "content": prompt}])
 
