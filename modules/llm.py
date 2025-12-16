@@ -6,7 +6,7 @@ from .config import MODEL_NAME
 
 load_dotenv()
 
-if not os.getenv():
+if not os.getenv("GROQ_API_KEY"):
     raise RuntimeError("GROQ_API_KEY is not set")
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
