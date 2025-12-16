@@ -1,194 +1,69 @@
-import os
-import pandas as pd
 import streamlit as st
-import sqlite3
-from dotenv import load_dotenv
-from groq import Groq
+from modules.service import run_nl_query
+from modules.schema import get_database_text
+from modules.schema import get_database_schema_structured
 
-load_dotenv()
+if "last_sample" not in st.session_state:
+    st.session_state["last_sample"] = "— Select a sample question —"
 
+SAMPLE_QUESTIONS = {
+    "— Select a sample question —": "",
+    "Top 5 customers by spending": "Show top 5 customers by total spending",
+    "Most popular artists": "Which artists have the highest total sales?",
+    "Best-selling tracks": "Show top 10 best-selling tracks",
+    "Revenue by country": "Show total revenue grouped by country",
+    "Monthly sales trend": "Show total sales per month"
+}
 
-def get_database_schema():
-    conn = sqlite3.connect("database/sales.db")
-    cursor = conn.cursor()
-
-    schema_text = ""
-
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = cursor.fetchall()
-
-    for table in tables:
-        table_name = table[0]
-        schema_text += f"\nTable : {table_name}\n"
-
-        cursor.execute(f"PRAGMA table_info({table_name})")
-        columns = cursor.fetchall()
-
-        for col in columns:
-            schema_text += f"- {col[1]} ({col[2]})\n"
-
-    conn.close()
-    return schema_text
-
-
-def generate_sql_from_natural_language(user_question, schema):
-    client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-    prompt = f"""You are an SQL expert. Given this database schema : {schema}
-    User question : "{user_question}"
-    Generate ONLY SQL query; nothing else. No explainations, no markdown; just the SQL query.
-    User SQLite syntax """
-
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-
-    sql_query = response.choices[0].message.content.strip()
-    sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
-
-    return sql_query
-
-
-def validate_query(sql_query):
-    query_upper = sql_query.strip().upper()
-    dangerous_keywords = ["DROP", "TRUNCATE", "ALTER"]
-
-    for keyword in dangerous_keywords:
-        if keyword in query_upper:
-            return False, f"⚠️ {keyword} commands are not allowed for safety reasons"
-
-    if "DELETE" in query_upper and "WHERE" not in query_upper:
-        return False, f"⚠️ DELETE without WHERE clause is not allowed. Please specify which rows to delete."
-
-    if "UPDATE" in query_upper and "WHERE" not in query_upper:
-        return False, f"⚠️ UPDATE without WHERE clause is not allowed. Please specify which rows to update."
-
-    return True, None
-
+st.set_page_config(
+    page_title="SQL Query Generator",
+    page_icon="🔍",
+)
 
 st.title("SQL Query Generator")
-
-with st.expander("View Database Schema : "):
-    conn = sqlite3.connect("database/sales.db")
-    cursor = conn.cursor()
-
-    schema_text = ""
-
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = cursor.fetchall()
-
-    for table in tables:
-        table_name = table[0]
-        cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
-        row_count = cursor.fetchone()[0]
-        st.subheader(f"Table: {table_name}, ({row_count} rows)")
-
-        cursor.execute(f"PRAGMA table_info({table_name})")
-        columns = cursor.fetchall()
-
-        for col in columns:
-            st.text(f"  • {col[1]} ({col[2]})")
-
-    conn.close()
-
-mode = st.radio("Choose input mode : ", [
-                "Write SQL", "Ask in natural language"])
+st.caption(
+    "Connected to Chinook sample database -> (music store data: customers, invoices, artists, albums, tracks).")
+st.caption("Natural language -> SQL (read only)")
 
 st.markdown("---")
-st.write("💡 Or try a sample query : ")
 
-if mode == "Write SQL":
-    sample_queries = sample_queries = {
-        "Select a sample...": "",
-        "Show all customers": "SELECT * FROM customers",
-        "Show all orders": "SELECT * FROM orders",
-        "Top 3 customers by spending": "SELECT name, total_spent FROM customers ORDER BY total_spent DESC LIMIT 3",
-        "Orders with customer names": "SELECT customers.name, orders.product, orders.amount FROM orders JOIN customers ON orders.customer_id = customers.id"
-    }
-else:
-    sample_queries = {
-        "Select a sample...": "",
-        "Show all customers": "Show all customers",
-        "Find big spenders": "Show me customers who spent more than 1000",
-        "Recent orders": "Show all orders with customer names",
-        "Count customers": "How many customers do we have?"
-    }
+with st.sidebar:
+    st.subheader("Database")
+    st.caption("Chinook sample database")
 
-selected_sample = st.selectbox("Choose sample : ", list(sample_queries.keys()))
+    schema = get_database_schema_structured()
 
-if mode == "Write SQL":
-    default_query = sample_queries[selected_sample] if sample_queries[selected_sample] else "SELECT * FROM customers"
-    sql_query = st.text_area("Enter SQL query", default_query)
+    st.markdown("Tables : ")
+    for table_name, columns in schema.items():
+        with st.expander(table_name):
+            for col in columns:
+                st.markdown(f"- `{col["name"]}`  ({col["type"]})")
 
-    if st.button("Run Query"):
-        is_valid, error_msg = validate_query(sql_query)
-        if not is_valid:
-            st.error(error_msg)
+sample_choice = st.selectbox(
+    "Try a sample question", options=list(SAMPLE_QUESTIONS.keys()), key="sample_select")
 
+if sample_choice != "— Select a sample question —" and sample_choice != st.session_state["last_sample"]:
+    st.session_state["user_question"] = SAMPLE_QUESTIONS[sample_choice]
+    st.session_state["last_sample"] = sample_choice
+
+st.markdown("Ask a question : ")
+user_question = st.text_input(
+    "What would you like to know", key="user_question", placeholder="Which artists generated the most revenue?")
+
+run = st.button("Generate + Run query", type="primary")
+if run:
+    with st.spinner("Running query ..."):
+        response = run_nl_query(user_question)
+
+        if not response["success"]:
+            st.error(response["error"])
         else:
-            conn = sqlite3.connect("database/sales.db")
-            cursor = conn.cursor()
+            st.subheader("Generated SQL")
+            st.code(response["sql"], language="sql")
 
-            try:
-                cursor.execute(sql_query)
+            st.subheader("Results")
+            st.dataframe(response["result"], use_container_width=True)
+            st.caption(f"{len(response["result"])} rows returned")
 
-                if cursor.description:
-                    results = cursor.fetchall()
-                    columns = [description[0]
-                               for description in cursor.description]
-                    df = pd.DataFrame(results, columns=columns)
-                    st.dataframe(df)
-                else:
-                    conn.commit()
-                    st.success(
-                        f"Query executed - {cursor.rowcount} row(s) affected")
-                    st.balloons()
-
-            except Exception as e:
-                st.error(f"Error : {e}")
-
-            finally:
-                conn.close()
-
-else:
-    default_question = sample_queries[selected_sample] if sample_queries[selected_sample] else "Show me all customers"
-    user_question = st.text_input(
-        "Ask a question about your data : ", default_question)
-
-    if st.button("Generate & Run Query : "):
-        with st.spinner("Generating SQL"):
-            schema = get_database_schema()
-
-            generated_sql = generate_sql_from_natural_language(
-                user_question, schema)
-
-            st.subheader("Generated SQL : ")
-            st.code(generated_sql, language="sql")
-
-        is_valid, error_msg = validate_query(generated_sql)
-        if not is_valid:
-            st.error(error_msg)
-
-        else:
-            conn = sqlite3.connect("database/sales.db")
-            cursor = conn.cursor()
-
-            try:
-                cursor.execute(generated_sql)
-
-                if cursor.description:
-                    results = cursor.fetchall()
-                    columns = [description[0]
-                               for description in cursor.description]
-                    df = pd.DataFrame(results, columns=columns)
-                    st.dataframe(df)
-                else:
-                    conn.commit()
-                    st.success(
-                        f"Query executed - {cursor.rowcount} row(s) affected")
-                    st.balloons()
-
-            except Exception as e:
-                st.error(f"Error: {e}")
-
-            finally:
-                conn.close()
+st.markdown("---")
+st.caption("🔒 Read-only mode : only SELECT queries are allowed")
