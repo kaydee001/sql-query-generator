@@ -29,3 +29,23 @@ def get_database_text():
 
     conn.close()
     return schema_text
+
+
+def get_database_schema_structured():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    tables = cursor.fetchall()
+
+    schema = {}
+
+    for (table_name, ) in tables:
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        columns = cursor.fetchall()
+
+        schema[table_name] = [{"name": col[1], "type": col[2]}
+                              for col in columns]
+
+    conn.close()
+    return schema

@@ -6,16 +6,12 @@ from .config import DB_PATH
 def execute_query(sql_query: str) -> tuple[bool, pd.DataFrame | str]:
     try:
         with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            cursor.execute(sql_query)
+            df = pd.read_sql_query(sql_query, conn)
 
-        if cursor.description:
-            results = cursor.fetchall()
-            columns = [desc[0] for desc in cursor.description]
-            df = pd.DataFrame(results, columns=columns)
-            return True, df
+            if df.empty:
+                return True, "No results found"
 
-        return True, pd.DataFrame()
+        return True, df
 
     except sqlite3.Error as e:
         return False, f"Database error : {str(e)}"
