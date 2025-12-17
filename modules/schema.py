@@ -1,5 +1,9 @@
+import os
 import sqlite3
 from .config import DB_PATH
+
+if not os.path.exists(DB_PATH):
+    raise RuntimeError(f"Database file not found at {DB_PATH}")
 
 
 def get_database_text():

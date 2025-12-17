@@ -27,11 +27,15 @@ st.caption("Natural language -> SQL (read only)")
 
 st.markdown("---")
 
+try:
+    schema = get_database_schema_structured()
+except RuntimeError as e:
+    st.error(str(e))
+    st.stop()
+
 with st.sidebar:
     st.subheader("Database")
     st.caption("Chinook sample database")
-
-    schema = get_database_schema_structured()
 
     st.markdown("Tables : ")
     for table_name, columns in schema.items():
