@@ -211,3 +211,4 @@ __marimo__/
 __pycache__/
 *.pyc
 database/*.db
+!database/chinook.db
