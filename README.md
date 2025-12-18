@@ -1,58 +1,75 @@
 # SQL Query Generator 🔍
 
-Natural language to SQL query system - Ask questions about your database in plain English, get SQL queries generated, validated, and executed automatically.
+A safe, schema-aware **Natural Language → SQL** application that allows users to query a database using plain English.
+The system generates SQL using an LLM, validates it for safety, and executes it in a controlled, read-only manner.
 
-[Live Demo](https://querymate-ai.streamlit.app/) | [GitHub](https://github.com/kaydee001/sql-query-generator)
+[Live Demo](https://querymate-ai.streamlit.app/)
+
+---
 
 ## 🎯 What It Does
 
-This application allows non-technical users to query databases using natural language. It generates SQL queries using LLM technology, validates them for safety, and displays results in an easy-to-read format.
+This application allows users to ask questions about a database in natural language and receive query results without writing SQL manually.
 
-**Example:**
-```
-User: "Show me customers who spent more than 1000"
-System: Generates → SELECT * FROM customers WHERE total_spent > 1000
-System: Validates → Safe ✅
-System: Executes → Shows results
-```
+**Example flow:**
+
+User question → LLM generates SQL → Validator checks safety → Executor runs query → Results displayed
 
 ## ✨ Features
 
-- 🤖 **Natural Language to SQL** - Ask questions in plain English
-- 🛡️ **Query Validation** - Prevents dangerous operations (DROP, DELETE without WHERE, etc.)
-- 📊 **Database Schema Viewer** - See available tables and columns
-- 💡 **Sample Queries** - Pre-built examples to get started
-- ⚡ **Dual Input Modes** - Write SQL directly or use natural language
-- 🎨 **Clean UI** - Built with Streamlit for easy interaction
+- 🤖 Natural Language to SQL
+- 🧠 Schema-Aware Prompting (LLM sees actual DB schema)
+- 🛡️ Read-Only SQL Enforcement (SELECT-only execution)
+- 📊 Database Schema Viewer
+- 💡 Sample Questions for Quick Start
+- 🎨 Simple, Clean UI built with Streamlit
+
+## 🧩 Architecture Overview
+
+The application is structured into clear, single-responsibility modules:
+
+- **UI (app.py)** – User interaction and result display
+- **Service Layer (service.py**) – Orchestrates the NL → SQL pipeline
+- **LLM (llm.py)** – Converts natural language to SQL
+- **Validator (validator.py)** – Enforces SQL safety rules
+- **Executor (executor.py)** – Executes validated queries
+- **Schema (schema.py)** – Extracts database metadata
+- **Config (config.py)** – Centralized configuration
+
+This separation keeps the system debuggable, safe, and maintainable.
+
+## 🔒 Safety Design
+
+Multiple layers prevent unsafe execution:
+
+- Only SELECT queries are allowed
+- Dangerous keywords (DROP, ALTER, PRAGMA, etc.) are blocked
+- Multiple SQL statements are disallowed
+- Executor performs a final safety check before execution
+- Errors are handled gracefully and surfaced to the user
+
+## ⚠️ Known Limitations
+
+- Fixed sample database (SQLite Chinook DB)
+- Read-only queries only
+- Complex or ambiguous questions may fail
+- SQLite-specific schema introspection
+- Not optimized for large datasets
 
 ## 🛠️ Tech Stack
 
-- **Python** - Core programming language
-- **Streamlit** - Web UI framework
-- **SQLite** - Database (easily adaptable to MySQL/PostgreSQL)
-- **Groq API** - LLM for natural language processing
-- **LLaMA 3.3 70B** - Language model for SQL generation
+- **Python**
+- **Streamlit**
+- **SQLite**
+- **Groq API**
+- **Pandas**
+- **LLaMA 3.3 70B**
 
 
 ## 📸 Screenshots
 
-[TODO: Add screenshots here after deployment]
-
-### Natural Language Mode
-![Natural Language Query](screenshot1.png)
-
-### SQL Mode with Validation
-![Query Validation](screenshot2.png)
-
-## 🔒 Safety Features
-
-The application includes multiple safety layers:
-
-- **Query Validation**: Blocks DROP, TRUNCATE, ALTER commands
-- **WHERE Clause Enforcement**: Prevents DELETE/UPDATE without conditions
-- **Error Handling**: Graceful failure with user-friendly messages
-- **Preview Before Execute**: Shows generated SQL before running
+![Screenshot](screenshot1.png)
 
 ---
 
-**Built as part of my AI/ML learning journey** 🚀
+**Built as a practical, production-minded AI engineering project** 🚀
